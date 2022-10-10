@@ -8,8 +8,6 @@
 #include <stack>
 #include <strstream>
 
-#define MENU_HEIGHT 45
-
 #define TOP_HEIGHT 46	// Высота табло (где отображаются очки) в пикселах
 #define CELL_SIZE 45	//Размер стороны ячейки в пикселах (они все квадратные)
 
@@ -327,6 +325,8 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	hInst=hInstance;
 	MyRegisterClass(hInstance);
 
+	GetInfo();
+
 	if (!InitInstance (hInstance,nCmdShow))
 	{
 		return FALSE;
@@ -372,9 +372,12 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 // Создание и отображение окна
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
+   RECT Rect{0, 0, CELL_SIZE*max_x,TOP_HEIGHT+CELL_SIZE*max_y};
+
+   AdjustWindowRect(&Rect, WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX, TRUE);
    hWnd = CreateWindow(szWindowClass, szTitle, 
 	   WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX,// WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, NULL, NULL, hInstance, NULL);
+      CW_USEDEFAULT, CW_USEDEFAULT, Rect.right - Rect.left, Rect.bottom - Rect.top, NULL, NULL, hInstance, NULL);
 
    if (!hWnd)
    {
@@ -455,11 +458,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		mylog = fopen("lines.log", "wt"); //medo
 		#endif
 
-		GetInfo();
 		hMenu = GetSubMenu(GetMenu(hWnd),0);
 		CheckMenuItem(hMenu, gametype+IDM_EASY, MF_CHECKED);
-		GetWindowRect(hWnd,&Rect);
-		MoveWindow(hWnd,Rect.left,Rect.top,CELL_SIZE*max_x+7,TOP_HEIGHT+CELL_SIZE*max_y+MENU_HEIGHT,TRUE);
 		NewGame();
 
 		SetTimer(hWnd,0,1000,NULL);
@@ -525,11 +525,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case IDM_NORMAL:
 		case IDM_HARD:
 		case IDM_CUSTOM:
-			CheckMenuItem(hMenu, gametype+IDM_EASY, MF_UNCHECKED);
-			CheckMenuItem(hMenu,LOWORD(wParam), MF_CHECKED);
-			gametype=LOWORD(wParam)-IDM_EASY;
-			GetWindowRect(hWnd,&Rect);
-			MoveWindow(hWnd,Rect.left,Rect.top,CELL_SIZE*max_x+7,TOP_HEIGHT+CELL_SIZE*max_y+MENU_HEIGHT,TRUE);
+			{
+				CheckMenuItem(hMenu, gametype+IDM_EASY, MF_UNCHECKED);
+				CheckMenuItem(hMenu,LOWORD(wParam), MF_CHECKED);
+				gametype=LOWORD(wParam)-IDM_EASY;
+				GetWindowRect(hWnd,&Rect);
+				RECT rcClient{0, 0, CELL_SIZE*max_x, TOP_HEIGHT+CELL_SIZE*max_y};
+				Rect.right = CELL_SIZE*max_x;
+				Rect.bottom = TOP_HEIGHT+CELL_SIZE*max_y;
+				AdjustWindowRect(&rcClient, WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX, TRUE);
+				MoveWindow(hWnd,Rect.left,Rect.top,rcClient.right - rcClient.left,rcClient.bottom - rcClient.top,TRUE);
+			}
 		case IDM_NEW:
 			NewGame();
 			InvalidateRect(hWnd,NULL,FALSE);
