@@ -1,4 +1,4 @@
-#include "windows.h"
+#include <windows.h>
 #include "resource.h"
 
 #include "random.h"
