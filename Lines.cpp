@@ -80,21 +80,21 @@ FILE *mylog; //medo
 
 const char* aCell_states[6] = 
 {
-  "Отсутствие шара",
-  "Подсказка",
-  "Появление шара",
-  "Шар стоит",
-  "Шар прыгает",
-  "Удаление шара"
+	"Отсутствие шара",
+	"Подсказка",
+	"Появление шара",
+	"Шар стоит",
+	"Шар прыгает",
+	"Удаление шара"
 };
 
 const char* aLines_states[5] = 
 {
-  "Поиск игрового шара",
-  "Поиск куда послать игровой шар",
-  "Передвижение игрового шара",
-  "Удаление линий",
-  "Появление новых шаров"
+	"Поиск игрового шара",
+	"Поиск куда послать игровой шар",
+	"Передвижение игрового шара",
+	"Удаление линий",
+	"Появление новых шаров"
 };
 
 #endif
@@ -372,22 +372,30 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 // Создание и отображение окна
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   RECT Rect{0, 0, CELL_SIZE*max_x,TOP_HEIGHT+CELL_SIZE*max_y};
+	RECT Rect{0, 0, CELL_SIZE*max_x,TOP_HEIGHT+CELL_SIZE*max_y};
 
-   AdjustWindowRect(&Rect, WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX, TRUE);
-   hWnd = CreateWindow(szWindowClass, szTitle, 
-	   WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX,// WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, CW_USEDEFAULT, Rect.right - Rect.left, Rect.bottom - Rect.top, NULL, NULL, hInstance, NULL);
+	AdjustWindowRect(&Rect, WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX, TRUE);
+	hWnd = CreateWindow(szWindowClass,
+	                    szTitle, 
+	                    WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX,// WS_OVERLAPPEDWINDOW,
+	                    CW_USEDEFAULT,
+	                    CW_USEDEFAULT,
+	                    Rect.right - Rect.left,
+	                    Rect.bottom - Rect.top,
+	                    NULL,
+	                    NULL,
+	                    hInstance,
+	                    NULL);
 
-   if (!hWnd)
-   {
-      return FALSE;
-   }
+	if (!hWnd)
+	{
+		return FALSE;
+	}
 
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
+	ShowWindow(hWnd, nCmdShow);
+	UpdateWindow(hWnd);
 
-   return TRUE;
+	return TRUE;
 }
 
 // Главная функция окна
