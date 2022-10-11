@@ -100,8 +100,8 @@ const char* aLines_states[5] =
 #endif
 
 
-HANDLE bmp_0,bmp_prestand, bmp_stand, bmp_jump[N2], bmp_explode[N3], bmp_appear[N1], bmp_numbers, bmp_points;
-HANDLE *bmp[6];
+HBITMAP bmp_0,bmp_prestand, bmp_stand, bmp_jump[N2], bmp_explode[N3], bmp_appear[N1], bmp_numbers, bmp_points;
+HBITMAP *bmp[6];
 
 HDC hDC;
 HDC hCompatibleDC;
