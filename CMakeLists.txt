@@ -35,3 +35,6 @@ add_executable(Lines98 WIN32
     res/stand.bmp
     SMALL.ICO
 )
+if(MSVC)
+    target_compile_definitions(Lines98 PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
