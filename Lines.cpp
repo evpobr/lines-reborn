@@ -332,7 +332,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		return FALSE;
 	}
 
-	hAccelTable = LoadAccelerators(hInstance, (LPCTSTR)IDC_LINES);
+	hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_LINES));
 
 	//Главный цикл сообщений Windows
 	while (GetMessage(&msg, NULL, 0, 0)) 
@@ -359,12 +359,12 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 	wcex.cbClsExtra		= 0;
 	wcex.cbWndExtra		= 0;
 	wcex.hInstance		= hInstance;
-	wcex.hIcon			= LoadIcon(hInst, (LPCTSTR)IDI_LINES);
+	wcex.hIcon			= LoadIcon(hInst, MAKEINTRESOURCE(IDI_LINES));
 	wcex.hCursor		= LoadCursor(NULL, IDC_ARROW);
 	wcex.hbrBackground	= (HBRUSH)(COLOR_WINDOW+1);
 	wcex.lpszMenuName	= (LPCSTR)IDC_LINES;
 	wcex.lpszClassName	= szWindowClass;
-	wcex.hIconSm		= LoadIcon(wcex.hInstance, (LPCTSTR)IDI_SMALL);
+	wcex.hIconSm		= LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
 	return RegisterClassEx(&wcex);
 }
@@ -509,14 +509,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			del_balls = 4;
 			break;
 		case IDM_CUSTOM:
-			DialogBox(hInst, (LPCTSTR)IDD_CUSTOMBOX, hWnd, (DLGPROC)Custom);
+			DialogBox(hInst, MAKEINTRESOURCE(IDD_CUSTOMBOX), hWnd, (DLGPROC)Custom);
 			CheckCustomParameters();
 			break;
 		}
 		switch (LOWORD(wParam))
 		{
 		case IDM_ABOUT:
-			DialogBox(hInst, (LPCTSTR)IDD_ABOUTBOX, hWnd, (DLGPROC)About);
+			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, (DLGPROC)About);
 			break;
 		case IDM_EXIT:
 			DestroyWindow(hWnd);
@@ -541,7 +541,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd,NULL,FALSE);
 			break;
 		case IDM_BESTRESULTS:
-			DialogBox(hInst, (LPCTSTR)IDD_BESTRESULTSBOX, hWnd, (DLGPROC)BestResults);
+			DialogBox(hInst, MAKEINTRESOURCE(IDD_BESTRESULTSBOX), hWnd, (DLGPROC)BestResults);
 			break;
 		default:
 			return DefWindowProc(hWnd, message, wParam, lParam);
@@ -1222,11 +1222,11 @@ void GameOver()
 	{
 		if (leaders[gametype].score<gamescore || (leaders[gametype].score==gamescore && leaders[gametype].time>gametime))
 		{
-			DialogBox(hInst, (LPCTSTR)IDD_GETNAMEBOX, hWnd, (DLGPROC)GetName);
+			DialogBox(hInst, MAKEINTRESOURCE(IDD_GETNAMEBOX), hWnd, (DLGPROC)GetName);
 			leaders[gametype].score=gamescore;
 			leaders[gametype].time=gametime;
 		}
-		else DialogBox(hInst, (LPCTSTR)IDD_BESTRESULTSBOX, hWnd, (DLGPROC)BestResults);
+		else DialogBox(hInst, MAKEINTRESOURCE(IDD_BESTRESULTSBOX), hWnd, (DLGPROC)BestResults);
 	} else MessageBox(hWnd,"Your custom game is over...", "Condolences",MB_OK);
 	NewGame();
 	InvalidateRect(hWnd,NULL,FALSE);
