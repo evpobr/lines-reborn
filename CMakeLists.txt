@@ -8,7 +8,7 @@ add_executable(Lines98 WIN32
     resource.h
     resrc1.h
     Lines.rc
-    Lines.ICO
+    Lines.ico
     res/0.bmp
     res/appear_1.bmp
     res/appear_2.bmp
@@ -33,7 +33,7 @@ add_executable(Lines98 WIN32
     res/points.bmp
     res/prestand.bmp
     res/stand.bmp
-    SMALL.ICO
+    small.ico
 )
 if(MSVC)
     target_compile_definitions(Lines98 PRIVATE _CRT_SECURE_NO_WARNINGS)
