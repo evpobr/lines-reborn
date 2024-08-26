@@ -335,12 +335,25 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_LINES));
 
 	//Главный цикл сообщений Windows
-	while (GetMessage(&msg, NULL, 0, 0)) 
+	while (true)
 	{
-		if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg)) 
+		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) 
 		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+			if (msg.message == WM_QUIT)
+			{
+				break;
+			}
+			else
+			{
+				if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg)) 
+				{
+					TranslateMessage(&msg);
+					DispatchMessage(&msg);
+				}
+			}
+		}
+		else
+		{
 		}
 	}
 
