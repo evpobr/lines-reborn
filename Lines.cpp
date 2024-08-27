@@ -32,14 +32,16 @@ struct
 	int pre_color;
 	//Номер картинки, выводимой в текущий момент, при появлении, удалении, прыжке шарика
 	int num_pic;
-} 
+}
 
 // Игровое поле
-map[MAX_MAP_X][MAX_MAP_Y];	
+map[MAX_MAP_X][MAX_MAP_Y];
 
 // Цвет игрового шарика
 int ball_color;
-
+bool is_ball_anim_started;
+ULONGLONG ball_anim_tick;
+ULONGLONG ball_anim_elapsed;
 
 struct info
 {
@@ -78,7 +80,7 @@ int del_balls;
 //FILE *log;
 FILE *mylog; //medo
 
-const char* aCell_states[6] = 
+const char* aCell_states[6] =
 {
 	"Отсутствие шара",
 	"Подсказка",
@@ -88,7 +90,7 @@ const char* aCell_states[6] =
 	"Удаление шара"
 };
 
-const char* aLines_states[5] = 
+const char* aLines_states[5] =
 {
 	"Поиск игрового шара",
 	"Поиск куда послать игровой шар",
@@ -109,6 +111,8 @@ HWND hWnd;
 HINSTANCE hInst;
 TCHAR szTitle[] = "Lines";
 TCHAR szWindowClass[] = "LINES";
+
+bool IsGameRunning;
 
 RECT clRect;
 
@@ -192,7 +196,7 @@ public:
 		}
 		#endif
 
-		
+
 		DrawState();
 	}
 
@@ -204,7 +208,7 @@ public:
 
 private:
 	//ВХОДЯЩИЕ ПЕРЕМЕННЫЕ
-	
+
 	//Требуется восстановление подсказки
 	bool x0() const
 	{return PreColor()!=-1;}
@@ -217,7 +221,7 @@ private:
 	//Последняя стадия удаления шара
 	bool x3() const
 	{return (NumPic()==N3-1);}
-	
+
 	//ВЫХОДЯЩИЕ ВОЗДЕЙСТВИЯ
 
 	//Установить в ячейке двигающийся шар
@@ -244,6 +248,7 @@ private:
 
 };
 
+cell l;
 //Игровой шар
 cell ball;
 //Выбранный шар (ткнули мышкой)
@@ -335,9 +340,23 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_LINES));
 
 	//Главный цикл сообщений Windows
+
+	ULONGLONG EndingTime, ElapsedMilliseconds;
+	ULONGLONG StartingTime = GetTickCount64();
+	ULONGLONG GameTime = 0;
+
 	while (true)
 	{
-		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) 
+		EndingTime = GetTickCount64();
+		ElapsedMilliseconds = EndingTime - StartingTime;
+		StartingTime = EndingTime;
+		char Buffer[100];
+		sprintf(Buffer, "ElapsedMilliseconds = %I64d\n", ElapsedMilliseconds);
+		OutputDebugString(Buffer);
+
+		GameTime += ElapsedMilliseconds;
+
+		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
 		{
 			if (msg.message == WM_QUIT)
 			{
@@ -345,7 +364,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 			}
 			else
 			{
-				if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg)) 
+				if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
 				{
 					TranslateMessage(&msg);
 					DispatchMessage(&msg);
@@ -354,6 +373,28 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		}
 		else
 		{
+			if (IsGameRunning)
+			{
+				if (is_ball_anim_started)
+				{
+					ball_anim_elapsed += ElapsedMilliseconds;
+					if (ball_anim_elapsed >= ball_anim_tick)
+					{
+						ALines(1);
+						ball_anim_elapsed = 0;
+					}
+				}
+
+				if (GameTime >= 1000)
+				{
+					gametime++;
+					GameTime = 0;
+				}
+				DrawTop();
+				for (l.posx=0;l.posx<max_x;l.posx++)
+					for(l.posy=0;l.posy<max_y;l.posy++)
+						l.DrawState();
+			}
 		}
 	}
 
@@ -365,7 +406,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 {
 	WNDCLASSEX wcex;
 
-	wcex.cbSize = sizeof(WNDCLASSEX); 
+	wcex.cbSize = sizeof(WNDCLASSEX);
 
 	wcex.style			= CS_HREDRAW | CS_VREDRAW;
 	wcex.lpfnWndProc	= (WNDPROC)WndProc;
@@ -389,7 +430,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 	AdjustWindowRect(&Rect, WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX, TRUE);
 	hWnd = CreateWindow(szWindowClass,
-	                    szTitle, 
+	                    szTitle,
 	                    WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX,// WS_OVERLAPPEDWINDOW,
 	                    CW_USEDEFAULT,
 	                    CW_USEDEFAULT,
@@ -418,11 +459,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	static RECT Rect;
 	static HMENU hMenu;
 	static HKEY hKey;
-	static cell l;
 	static int temp;
 	static	FILE *f;
 
-	switch (message) 
+	switch (message)
 	{
 // Обработка сообщения при создании окна
 	case WM_CREATE:
@@ -482,8 +522,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		hMenu = GetSubMenu(GetMenu(hWnd),0);
 		CheckMenuItem(hMenu, gametype+IDM_EASY, MF_CHECKED);
 		NewGame();
-
-		SetTimer(hWnd,0,1000,NULL);
 		break;
 
 // Обработка сообщения от нажатия левой кнопки мыши
@@ -491,20 +529,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		click_ball.posx = LOWORD(lParam)/CELL_SIZE;
 		click_ball.posy = (HIWORD(lParam)-TOP_HEIGHT)/45;
 		ALines(0);
-		break;
-
-// Обработка сообщения от таймера
-	case WM_TIMER:
-		switch (LOWORD(wParam))
-		{
-		case 0:
-			gametime++;
-			DrawTime();
-			break;
-		case 1:
-			ALines(1);
-			break;
-		}
 		break;
 
 // Обработка сообщения WM_COMMAND
@@ -570,16 +594,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		}
 		break;
 // Обработка сообщения при отрисовке окна
-	case WM_PAINT:
-		BeginPaint(hWnd, &ps);
+	// case WM_PAINT:
+	// 	BeginPaint(hWnd, &ps);
 
-		DrawTop();
-		for (l.posx=0;l.posx<max_x;l.posx++)
-		for(l.posy=0;l.posy<max_y;l.posy++)
-			l.DrawState();
+	// 	DrawTop();
+	// 	for (l.posx=0;l.posx<max_x;l.posx++)
+	// 	for(l.posy=0;l.posy<max_y;l.posy++)
+	// 		l.DrawState();
 
-		EndPaint(hWnd, &ps);
-		break;
+	// 	EndPaint(hWnd, &ps);
+	// 	break;
 // Обработка сообщения при уничтожении окна
 	case WM_DESTROY:
 		DeleteObject(bmp_0);
@@ -641,7 +665,7 @@ LRESULT CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 				return TRUE;
 
 		case WM_COMMAND:
-			if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL) 
+			if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
 			{
 				EndDialog(hDlg, LOWORD(wParam));
 				return TRUE;
@@ -660,7 +684,7 @@ LRESULT CALLBACK Custom(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		case WM_INITDIALOG:
 			//ostrstream(szVal,sizeof(szVal)) << max_x << ends;
-			std::ostrstream(szVal, sizeof(szVal)) << max_x << std::ends; //medo 
+			std::ostrstream(szVal, sizeof(szVal)) << max_x << std::ends; //medo
 			SendDlgItemMessage(hDlg, IDC_EDIT1, WM_SETTEXT, (WPARAM)0,(LPARAM)szVal);
 			//ostrstream(szVal,sizeof(szVal)) << max_y << ends;
 			std::ostrstream(szVal, sizeof(szVal)) << max_y << std::ends; //medo
@@ -674,7 +698,7 @@ LRESULT CALLBACK Custom(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 			return TRUE;
 
 		case WM_COMMAND:
-			if (LOWORD(wParam) == IDOK) 
+			if (LOWORD(wParam) == IDOK)
 			{
 				SendDlgItemMessage(hDlg, IDC_EDIT1, WM_GETTEXT, (WPARAM)sizeof(szVal),(LPARAM)szVal);
 				//istrstream(szVal,sizeof(szVal)) >> max_x;
@@ -690,7 +714,7 @@ LRESULT CALLBACK Custom(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 				std::istrstream(szVal, sizeof(szVal)) >> del_balls; //medo
 				EndDialog(hDlg, LOWORD(wParam));
 			}
-			if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL) 
+			if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
 			{
 				EndDialog(hDlg, LOWORD(wParam));
 				return TRUE;
@@ -726,7 +750,7 @@ LRESULT CALLBACK BestResults(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
 			return TRUE;
 
 		case WM_COMMAND:
-			if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL) 
+			if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
 			{
 				EndDialog(hDlg, LOWORD(wParam));
 				return TRUE;
@@ -746,13 +770,13 @@ LRESULT CALLBACK GetName(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 				return TRUE;
 
 		case WM_COMMAND:
-			if (LOWORD(wParam) == IDOK) 
+			if (LOWORD(wParam) == IDOK)
 			{
 				SendDlgItemMessage(hDlg, IDC_EDIT1, WM_GETTEXT, (WPARAM)sizeof(szVal),(LPARAM)szVal);
 				//ostrstream(leaders[gametype].name,sizeof(leaders[gametype].name)) << szVal << ends;
 				std::ostrstream(leaders[gametype].name,sizeof(leaders[gametype].name)) << szVal << std::ends; //medo
 			}
-			if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL) 
+			if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
 			{
 				EndDialog(hDlg, LOWORD(wParam));
 				return TRUE;
@@ -774,10 +798,10 @@ void ALines(int e)
 	case 0:
 		if (e==0 && xk1() )				{ z0();				y_lines=1;}
 		break;
-	//Поиск куда послать игровой шар 
+	//Поиск куда послать игровой шар
 	case 1:
 		if (e==0 && xk0() && x0() )		{ z1_2(); z1_1();	y_lines=2;}
-		else 
+		else
 		if (e==0 && xk1() )				{ z1_2(); z0(); z1_3();}
 		else
 		if (e==0 && xk2() )				{ z1_2();			y_lines=0;}
@@ -814,7 +838,7 @@ void ALines(int e)
 		fprintf(mylog, "[%s] Автомат управления игрой из состояния \"%s\" перешел в состояние \"%s\".\n", s, aLines_states[y_old], aLines_states[y_lines]); //medo
 	}
 	#endif
-	
+
 	if (y_old!=y_lines)
 	switch(y_lines)
 	{
@@ -893,19 +917,22 @@ bool x5()
 //Запустить прыжок
 void z0()
 {
-	SetTimer(hWnd,1,50,NULL);
+	is_ball_anim_started = true;
+	ball_anim_tick = 50;
 	ball=click_ball;
 }
 //Запустить передвижение
 void z1_1()
 {
-	SetTimer(hWnd,1,50,NULL);
+	is_ball_anim_started = true;
+	ball_anim_tick = 50;
 	ball_color=ball.Color();
 }
 //Закончить прыжок
 void z1_2()
 {
-	KillTimer(hWnd,1);
+	is_ball_anim_started = false;
+	ball_anim_tick = 0;
 	ball.ACell(6);
 }
 //Прыгать
@@ -924,18 +951,21 @@ void z2_1()
 //Закончить передвижение
 void z2_2()
 {
-	KillTimer(hWnd,1);
+	is_ball_anim_started = false;
+	ball_anim_tick = 0;
 }
 //Запустить  удаление
 void z2_3()
 {
-	SetTimer(hWnd,1,20,NULL);
+	is_ball_anim_started = true;
+	ball_anim_tick = 20;
 }
 //Запустить появление
 void z2_4()
 {
 	CheckAppearList();
-	SetTimer(hWnd,1,50,NULL);
+	is_ball_anim_started = true;
+	ball_anim_tick = 50;
 }
 //Удалить
 void z3_1()
@@ -947,12 +977,13 @@ void z3_1()
 //Закончить удаление
 void z3_2()
 {
-	KillTimer(hWnd,1);
+	is_ball_anim_started = false;
+	ball_anim_tick = 0;
 
 	gamescore += (explode_list.size() - del_balls + 1) * explode_list.size();
 	DrawScore();
 
-	explode_list.clear(); 
+	explode_list.clear();
 }
 //Появление
 void z4_1()
@@ -964,7 +995,8 @@ void z4_1()
 //Закончить появление
 void z4_2()
 {
-	KillTimer(hWnd,1);
+	is_ball_anim_started = false;
+	ball_anim_tick = 0;
 	GenerateAppearList();
 }
 
@@ -1036,7 +1068,7 @@ bool CheckLines(const cell &in)
 		b=true;
 	}
 
-	if (b) 
+	if (b)
 	{
 		explode_list.remove(in);
 		explode_list.push_back(in);
@@ -1053,9 +1085,9 @@ bool FindPath(const cell &from, const cell &in)
 	{
 		cell pred;
 		int mark;
-	} 
+	}
 	v[MAX_MAP_X][MAX_MAP_Y];
-	
+
 	cell k,l;
 
 	std::queue<cell> q;
@@ -1161,7 +1193,7 @@ bool FindEmptyCell(cell &in)
 		in=l;
 		return true;
 	};
-	
+
 	for (int i=0;i<max_x*max_y;i++)
 	{
 		if (l.posx!=max_x-1) l.posx++;
@@ -1185,7 +1217,7 @@ bool Valid(const cell &in)
 	return (in.posx >= 0) && (in.posx < max_x) && (in.posy >= 0) && (in.posy < max_y) && (in.State() == 0 || in.State() == 1);
 }
 
-//Подготовка ресурсов для новой игры 
+//Подготовка ресурсов для новой игры
 void NewGame()
 {
 	for (int i=0;i<max_x;i++)
@@ -1211,8 +1243,6 @@ void NewGame()
 	fprintf(mylog, "[%s] Новая игра\n", s); //medo
 	#endif
 
-	SetTimer(hWnd,0,1000,NULL);
-
 	cell l;
 
 	for(int i=0;i<del_balls;i++)
@@ -1223,12 +1253,13 @@ void NewGame()
 	}
 	GenerateAppearList();
 
+	IsGameRunning = true;
 }
 
 //Обработка окончания игрового процесса
 void GameOver()
 {
-	KillTimer(hWnd,0);
+	IsGameRunning = false;
 
 	#ifdef LOGGING
 	char s[30];
@@ -1299,7 +1330,7 @@ void CheckCustomParameters()
 	if (del_balls<2) del_balls=2;
 
 	if (del_balls>(max_x>max_y?max_x:max_y)) del_balls = (max_x>max_y?max_x:max_y);
-	
+
 	if (app_balls+del_balls > max_x*max_y)
 	{
 		app_balls=max_x*max_y-del_balls;
