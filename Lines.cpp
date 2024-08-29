@@ -1082,17 +1082,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		}
 		break;
-// Обработка сообщения при отрисовке окна
-	// case WM_PAINT:
-	// 	BeginPaint(hWnd, &ps);
 
-	// 	DrawTop();
-	// 	for (l.posx=0;l.posx<max_x;l.posx++)
-	// 	for(l.posy=0;l.posy<max_y;l.posy++)
-	// 		l.DrawState();
-
-	// 	EndPaint(hWnd, &ps);
-	// 	break;
 // Обработка сообщения при уничтожении окна
 	case WM_DESTROY:
 		SafeRelease(&tex_0);
@@ -1844,7 +1834,6 @@ void DrawScore()
 		D3DXVECTOR3 Position(100-21*i,5,0);
 		g_pD3DSprite->Draw(tex_numbers, &SrcRect, NULL, &Position, 0xFFFFFFFF);
 
-		// BitBlt(hDC,100-21*i,5, 20, 37, hCompatibleDC, (t%10)*19, 0, SRCCOPY);
 		t /=10;
 	}
 }
