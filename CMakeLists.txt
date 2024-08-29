@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.25)
 
 project(Lines98 VERSION 1.0.0)
 
+find_package(dxsdk-d3dx REQUIRED)
+
 add_executable(Lines98 WIN32
     Lines.cpp
     random.h
@@ -38,3 +40,4 @@ add_executable(Lines98 WIN32
 if(MSVC)
     target_compile_definitions(Lines98 PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
+target_link_libraries(Lines98 PRIVATE d3d9 Microsoft::D3DX9)

@@ -16,7 +16,7 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// Русский (Россия) resources
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_RUS)
 LANGUAGE LANG_RUSSIAN, SUBLANG_DEFAULT
@@ -37,30 +37,30 @@ IDI_SMALL               ICON                    "SMALL.ICO"
 // Bitmap
 //
 
-IDB_0                   BITMAP                  "res\\0.bmp"
-IDB_PRESTAND            BITMAP                  "res\\prestand.bmp"
-IDB_STAND               BITMAP                  "res\\stand.bmp"
-IDB_JUMP_1              BITMAP                  "res\\jump_1.bmp"
-IDB_JUMP_2              BITMAP                  "res\\jump_2.bmp"
-IDB_JUMP_3              BITMAP                  "res\\jump_3.bmp"
-IDB_JUMP_4              BITMAP                  "res\\jump_4.bmp"
-IDB_JUMP_5              BITMAP                  "res\\jump_5.bmp"
-IDB_JUMP_6              BITMAP                  "res\\jump_6.bmp"
-IDB_EXPLODE_1           BITMAP                  "res\\explode_1.bmp"
-IDB_EXPLODE_2           BITMAP                  "res\\explode_2.bmp"
-IDB_EXPLODE_3           BITMAP                  "res\\explode_3.bmp"
-IDB_EXPLODE_4           BITMAP                  "res\\explode_4.bmp"
-IDB_EXPLODE_5           BITMAP                  "res\\explode_5.bmp"
-IDB_EXPLODE_6           BITMAP                  "res\\explode_6.bmp"
-IDB_EXPLODE_7           BITMAP                  "res\\explode_7.bmp"
-IDB_EXPLODE_8           BITMAP                  "res\\explode_8.bmp"
-IDB_EXPLODE_9           BITMAP                  "res\\explode_9.bmp"
-IDB_APPEAR_1            BITMAP                  "res\\appear_1.bmp"
-IDB_APPEAR_2            BITMAP                  "res\\appear_2.bmp"
-IDB_APPEAR_3            BITMAP                  "res\\appear_3.bmp"
-IDB_APPEAR_4            BITMAP                  "res\\appear_4.bmp"
-IDB_NUMBERS             BITMAP                  "res\\numbers.bmp"
-IDB_POINTS              BITMAP                  "res\\points.bmp"
+IDB_0                   RCDATA                  "res\\0.png"
+IDB_PRESTAND            RCDATA                  "res\\prestand.png"
+IDB_STAND               RCDATA                  "res\\stand.png"
+IDB_JUMP_1              RCDATA                  "res\\jump_1.png"
+IDB_JUMP_2              RCDATA                  "res\\jump_2.png"
+IDB_JUMP_3              RCDATA                  "res\\jump_3.png"
+IDB_JUMP_4              RCDATA                  "res\\jump_4.png"
+IDB_JUMP_5              RCDATA                  "res\\jump_5.png"
+IDB_JUMP_6              RCDATA                  "res\\jump_6.png"
+IDB_EXPLODE_1           RCDATA                  "res\\explode_1.png"
+IDB_EXPLODE_2           RCDATA                  "res\\explode_2.png"
+IDB_EXPLODE_3           RCDATA                  "res\\explode_3.png"
+IDB_EXPLODE_4           RCDATA                  "res\\explode_4.png"
+IDB_EXPLODE_5           RCDATA                  "res\\explode_5.png"
+IDB_EXPLODE_6           RCDATA                  "res\\explode_6.png"
+IDB_EXPLODE_7           RCDATA                  "res\\explode_7.png"
+IDB_EXPLODE_8           RCDATA                  "res\\explode_8.png"
+IDB_EXPLODE_9           RCDATA                  "res\\explode_9.png"
+IDB_APPEAR_1            RCDATA                  "res\\appear_1.png"
+IDB_APPEAR_2            RCDATA                  "res\\appear_2.png"
+IDB_APPEAR_3            RCDATA                  "res\\appear_3.png"
+IDB_APPEAR_4            RCDATA                  "res\\appear_4.png"
+IDB_NUMBERS             RCDATA                  "res\\numbers.png"
+IDB_POINTS              RCDATA                  "res\\points.png"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -232,7 +232,7 @@ BEGIN
     0
 END
 
-#endif    // Русский (Россия) resources
+#endif    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ) resources
 /////////////////////////////////////////////////////////////////////////////
 
 

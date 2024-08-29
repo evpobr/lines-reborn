@@ -1,0 +1,9 @@
+{
+    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+    "name": "lines98",
+    "description": "Lines98 game",
+    "version-semver": "1.0.0",
+    "dependencies": [
+        "dxsdk-d3dx"
+    ]
+}

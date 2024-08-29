@@ -1,4 +1,9 @@
 #include <windows.h>
+
+#include <d3d9.h>
+#include <d3dx9.h>
+#include <wincodec.h>
+
 #include "resource.h"
 
 #include "random.h"
@@ -102,8 +107,19 @@ const char* aLines_states[5] =
 #endif
 
 
-HBITMAP bmp_0,bmp_prestand, bmp_stand, bmp_jump[N2], bmp_explode[N3], bmp_appear[N1], bmp_numbers, bmp_points;
-HBITMAP *bmp[6];
+IDirect3D9Ex *g_pD3D;
+IDirect3DDevice9Ex *g_pD3DDevice;
+ID3DXSprite *g_pD3DSprite;
+
+IDirect3DTexture9 *tex_0;
+IDirect3DTexture9 *tex_prestand;
+IDirect3DTexture9 *tex_stand;
+IDirect3DTexture9 *tex_jump[N2];
+IDirect3DTexture9 *tex_explode[N3];
+IDirect3DTexture9 *tex_appear[N1];
+IDirect3DTexture9 *tex_numbers;
+IDirect3DTexture9 *tex_points;
+IDirect3DTexture9 **tex[6];
 
 HDC hDC;
 HDC hCompatibleDC;
@@ -115,6 +131,15 @@ TCHAR szWindowClass[] = "LINES";
 bool IsGameRunning;
 
 RECT clRect;
+
+template <class T> void SafeRelease(T **ppT)
+{
+	if (*ppT)
+	{
+		(*ppT)->Release();
+		*ppT = NULL;
+	}
+}
 
 // Класс "Ячейка"
 class cell
@@ -202,8 +227,14 @@ public:
 
 	void DrawState() const
 	{
-		SelectObject(hCompatibleDC, bmp[State()][NumPic()]);
-		BitBlt(hDC,posx*CELL_SIZE, TOP_HEIGHT+posy*CELL_SIZE, CELL_SIZE+1, CELL_SIZE+1, hCompatibleDC, Color()*CELL_SIZE, 0, SRCCOPY);
+		RECT SrcRect;
+		SrcRect.left = Color()*CELL_SIZE;
+		SrcRect.top = 0;
+		SrcRect.right = SrcRect.left + CELL_SIZE+1;
+		SrcRect.bottom = SrcRect.top + CELL_SIZE+1;
+
+		D3DXVECTOR3 Position(posx*CELL_SIZE,TOP_HEIGHT+posy*CELL_SIZE,0);
+		g_pD3DSprite->Draw(tex[State()][NumPic()], &SrcRect, NULL, &Position, 0xFFFFFFFF);
 	}
 
 private:
@@ -322,6 +353,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
                      LPSTR     lpCmdLine,
                      int       nCmdShow)
 {
+	CoInitializeEx(NULL, COINIT_MULTITHREADED);
 	MSG msg;
 	HACCEL hAccelTable;
 
@@ -350,10 +382,6 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		EndingTime = GetTickCount64();
 		ElapsedMilliseconds = EndingTime - StartingTime;
 		StartingTime = EndingTime;
-		char Buffer[100];
-		sprintf(Buffer, "ElapsedMilliseconds = %I64d\n", ElapsedMilliseconds);
-		OutputDebugString(Buffer);
-
 		GameTime += ElapsedMilliseconds;
 
 		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
@@ -390,13 +418,25 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 					gametime++;
 					GameTime = 0;
 				}
-				DrawTop();
-				for (l.posx=0;l.posx<max_x;l.posx++)
-					for(l.posy=0;l.posy<max_y;l.posy++)
-						l.DrawState();
+				if (g_pD3DDevice)
+				{
+					g_pD3DDevice->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 0.0f, 0);
+					g_pD3DDevice->BeginScene();
+
+					HRESULT hr = g_pD3DSprite->Begin(0);
+					DrawTop();
+					for (l.posx=0;l.posx<max_x;l.posx++)
+						for(l.posy=0;l.posy<max_y;l.posy++)
+							l.DrawState();
+					g_pD3DSprite->End();
+
+					g_pD3DDevice->EndScene();
+					g_pD3DDevice->Present(NULL, NULL, NULL, NULL);
+				}
 			}
 		}
 	}
+	CoUninitialize();
 
 	return msg.wParam;
 }
@@ -466,50 +506,498 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 // Обработка сообщения при создании окна
 	case WM_CREATE:
+	{
 		randomize();
 
-		bmp[0] = &bmp_0;
-		bmp[1] = &bmp_prestand;
-		bmp[2] = &bmp_appear[0];
-		bmp[3] = &bmp_stand;
-		bmp[4] = &bmp_jump[0];
-		bmp[5] = &bmp_explode[0];
+		HRESULT hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &g_pD3D);
+		if (FAILED(hr))
+		{
+			return -1;
+		}
+		D3DPRESENT_PARAMETERS d3dpp;
+		d3dpp.BackBufferWidth = 0;
+		d3dpp.BackBufferHeight = 0;
+		d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
+		d3dpp.BackBufferCount = 1;
+		d3dpp.MultiSampleType = D3DMULTISAMPLE_NONE;
+		d3dpp.MultiSampleQuality = 0;
+		d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+		d3dpp.hDeviceWindow = hWnd;
+		d3dpp.Windowed = TRUE;
+		d3dpp.EnableAutoDepthStencil = FALSE;
+		d3dpp.AutoDepthStencilFormat = D3DFMT_UNKNOWN;
+		d3dpp.Flags = 0;
+		d3dpp.FullScreen_RefreshRateInHz = 0;
+		d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
+		hr = g_pD3D->CreateDeviceEx(D3DADAPTER_DEFAULT,
+		                            D3DDEVTYPE_HAL,
+									hWnd,
+									D3DCREATE_HARDWARE_VERTEXPROCESSING,
+									&d3dpp,
+									NULL,
+									&g_pD3DDevice);
+		if (FAILED(hr))
+		{
+			return -1;
+		}
 
-		bmp_0 = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_0));
-		bmp_prestand = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_PRESTAND));
+		hr = D3DXCreateSprite(g_pD3DDevice, &g_pD3DSprite);
+		if (FAILED(hr))
+		{
+			return -1;
+		}
 
-		bmp_appear[0] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_APPEAR_1));
-		bmp_appear[1] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_APPEAR_2));
-		bmp_appear[2] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_APPEAR_3));
-		bmp_appear[3] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_APPEAR_4));
+		tex[0] = &tex_0;
+		tex[1] = &tex_prestand;
+		tex[2] = &tex_appear[0];
+		tex[3] = &tex_stand;
+		tex[4] = &tex_jump[0];
+		tex[5] = &tex_explode[0];
 
-		bmp_stand = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_STAND));
+		D3DDISPLAYMODE d3ddm;
+		g_pD3DDevice->GetDisplayMode(0, &d3ddm);
 
-		bmp_jump[0] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_JUMP_3));
-		bmp_jump[1] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_JUMP_2));
-		bmp_jump[2] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_JUMP_1));
-		bmp_jump[3] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_JUMP_2));
-		bmp_jump[4] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_JUMP_3));
-		bmp_jump[5] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_STAND));
-		bmp_jump[6] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_JUMP_4));
-		bmp_jump[7] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_JUMP_5));
-		bmp_jump[8] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_JUMP_6));
-		bmp_jump[9] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_JUMP_5));
-		bmp_jump[10] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_JUMP_4));
-		bmp_jump[11] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_STAND));
-
-		bmp_explode[0] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_EXPLODE_1));
-		bmp_explode[1] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_EXPLODE_2));
-		bmp_explode[2] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_EXPLODE_3));
-		bmp_explode[3] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_EXPLODE_4));
-		bmp_explode[4] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_EXPLODE_5));
-		bmp_explode[5] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_EXPLODE_6));
-		bmp_explode[6] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_EXPLODE_7));
-		bmp_explode[7] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_EXPLODE_8));
-		bmp_explode[8] = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_EXPLODE_9));
-
-		bmp_numbers = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_NUMBERS));
-		bmp_points = LoadBitmap(hInst,MAKEINTRESOURCE(IDB_POINTS));
+		hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_0),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_0);
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_PRESTAND),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_prestand);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_APPEAR_1),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_appear[0]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_APPEAR_2),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_appear[1]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_APPEAR_3),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_appear[3]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_APPEAR_4),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_appear[4]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_STAND),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_stand);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_JUMP_3),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_jump[0]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_JUMP_2),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_jump[1]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_JUMP_1),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_jump[2]);
+		}
+		tex_jump[3] = tex_jump[1];
+		tex_jump[3]->AddRef();
+		tex_jump[4] = tex_jump[0];
+		tex_jump[4]->AddRef();
+		tex_jump[5] = tex_stand;
+		tex_jump[5]->AddRef();
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_JUMP_4),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_jump[6]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_JUMP_5),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_jump[7]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_JUMP_6),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_jump[8]);
+		}
+		tex_jump[9] = tex_jump[7];
+		tex_jump[9]->AddRef();
+		tex_jump[10] = tex_jump[6];
+		tex_jump[10]->AddRef();
+		tex_jump[11] = tex_stand;
+		tex_jump[11]->AddRef();
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_EXPLODE_1),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_explode[0]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_EXPLODE_2),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_explode[1]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_EXPLODE_3),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_explode[2]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_EXPLODE_4),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_explode[3]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_EXPLODE_5),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_explode[4]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_EXPLODE_6),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_explode[5]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_EXPLODE_7),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_explode[6]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_EXPLODE_8),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_explode[7]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_EXPLODE_9),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_explode[8]);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_NUMBERS),
+				D3DX_FROM_FILE,
+				D3DX_FROM_FILE,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_numbers);
+		}
+		if (SUCCEEDED(hr))
+		{
+			hr = D3DXCreateTextureFromResourceEx(g_pD3DDevice,
+				hInst,
+				MAKEINTRESOURCE(IDB_POINTS),
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				1,
+				0,
+				d3ddm.Format,
+				D3DPOOL_DEFAULT,
+				D3DX_DEFAULT,
+				D3DX_DEFAULT,
+				0,
+				NULL,
+				NULL,
+				&tex_points);
+		}
 
 		hDC = GetDC(hWnd);
 		hCompatibleDC = CreateCompatibleDC(hDC);
@@ -522,6 +1010,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		hMenu = GetSubMenu(GetMenu(hWnd),0);
 		CheckMenuItem(hMenu, gametype+IDM_EASY, MF_CHECKED);
 		NewGame();
+	}
 		break;
 
 // Обработка сообщения от нажатия левой кнопки мыши
@@ -606,36 +1095,36 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	// 	break;
 // Обработка сообщения при уничтожении окна
 	case WM_DESTROY:
-		DeleteObject(bmp_0);
-		DeleteObject(bmp_prestand);
-		DeleteObject(bmp_appear[0]);
-		DeleteObject(bmp_appear[1]);
-		DeleteObject(bmp_appear[2]);
-		DeleteObject(bmp_appear[3]);
-		DeleteObject(bmp_stand);
-		DeleteObject(bmp_jump[0]);
-		DeleteObject(bmp_jump[1]);
-		DeleteObject(bmp_jump[2]);
-		DeleteObject(bmp_jump[3]);
-		DeleteObject(bmp_jump[4]);
-		DeleteObject(bmp_jump[5]);
-		DeleteObject(bmp_jump[6]);
-		DeleteObject(bmp_jump[7]);
-		DeleteObject(bmp_jump[8]);
-		DeleteObject(bmp_jump[9]);
-		DeleteObject(bmp_jump[10]);
-		DeleteObject(bmp_jump[11]);
-		DeleteObject(bmp_explode[0]);
-		DeleteObject(bmp_explode[1]);
-		DeleteObject(bmp_explode[2]);
-		DeleteObject(bmp_explode[3]);
-		DeleteObject(bmp_explode[4]);
-		DeleteObject(bmp_explode[5]);
-		DeleteObject(bmp_explode[6]);
-		DeleteObject(bmp_explode[7]);
-		DeleteObject(bmp_explode[8]);
-		DeleteObject(bmp_numbers);
-		DeleteObject(bmp_points);
+		SafeRelease(&tex_0);
+		SafeRelease(&tex_prestand);
+		SafeRelease(&tex_appear[0]);
+		SafeRelease(&tex_appear[1]);
+		SafeRelease(&tex_appear[2]);
+		SafeRelease(&tex_appear[3]);
+		SafeRelease(&tex_stand);
+		SafeRelease(&tex_jump[0]);
+		SafeRelease(&tex_jump[1]);
+		SafeRelease(&tex_jump[2]);
+		SafeRelease(&tex_jump[3]);
+		SafeRelease(&tex_jump[4]);
+		SafeRelease(&tex_jump[5]);
+		SafeRelease(&tex_jump[6]);
+		SafeRelease(&tex_jump[7]);
+		SafeRelease(&tex_jump[8]);
+		SafeRelease(&tex_jump[9]);
+		SafeRelease(&tex_jump[10]);
+		SafeRelease(&tex_jump[11]);
+		SafeRelease(&tex_explode[0]);
+		SafeRelease(&tex_explode[1]);
+		SafeRelease(&tex_explode[2]);
+		SafeRelease(&tex_explode[3]);
+		SafeRelease(&tex_explode[4]);
+		SafeRelease(&tex_explode[5]);
+		SafeRelease(&tex_explode[6]);
+		SafeRelease(&tex_explode[7]);
+		SafeRelease(&tex_explode[8]);
+		SafeRelease(&tex_numbers);
+		SafeRelease(&tex_points);
 
 		DeleteDC(hCompatibleDC);
 		ReleaseDC(hWnd,hDC);
@@ -646,6 +1135,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		//fclose(log);
 		fclose(mylog); //medo
 		#endif
+
+		SafeRelease(&g_pD3DSprite);
+		SafeRelease(&g_pD3DDevice);
+		SafeRelease(&g_pD3D);
 
 		PostQuitMessage(0);
 		break;
@@ -981,7 +1474,6 @@ void z3_2()
 	ball_anim_tick = 0;
 
 	gamescore += (explode_list.size() - del_balls + 1) * explode_list.size();
-	DrawScore();
 
 	explode_list.clear();
 }
@@ -1286,36 +1778,79 @@ void GameOver()
 //Отрисовать на табло продолжительность игры
 void DrawTime()
 {
-	SelectObject(hCompatibleDC, bmp_numbers);
 	int h=gametime;
 	int s2=h%60; h/=60;
 	int s1=s2%10; s2/=10;
 	int m2=h%60; h/=60;
 	int m1=m2%10; m2/=10;
-	BitBlt(hDC,max_x*CELL_SIZE-29,5,20,37,hCompatibleDC,s1*19,0,SRCCOPY);
-	BitBlt(hDC,max_x*CELL_SIZE-50,5,20,37,hCompatibleDC,s2*19,0,SRCCOPY);
-	BitBlt(hDC,max_x*CELL_SIZE-77,5,20,37,hCompatibleDC,m1*19,0,SRCCOPY);
-	BitBlt(hDC,max_x*CELL_SIZE-98,5,20,37,hCompatibleDC,m2*19,0,SRCCOPY);
-	BitBlt(hDC,max_x*CELL_SIZE-125,5,20,37,hCompatibleDC,h*19,0,SRCCOPY);
-	SelectObject(hCompatibleDC, bmp_points);
-	BitBlt(hDC,max_x*CELL_SIZE-56, 5,5,37,hCompatibleDC,0,0,SRCCOPY);
-	BitBlt(hDC,max_x*CELL_SIZE-104, 5,5,37,hCompatibleDC,0,0,SRCCOPY);
+
+	RECT SrcRect;
+	SrcRect.left = s1*19;
+	SrcRect.top = 0;
+	SrcRect.right = SrcRect.left + 20;
+	SrcRect.bottom = 37;
+
+	D3DXVECTOR3 Position(max_x*CELL_SIZE-29,5,0);
+	g_pD3DSprite->Draw(tex_numbers, &SrcRect, NULL, &Position, 0xFFFFFFFF);
+
+	SrcRect.left = s2*19;
+	SrcRect.top = 0;
+	SrcRect.right = SrcRect.left + 20;
+	Position.x = max_x*CELL_SIZE-50;
+	g_pD3DSprite->Draw(tex_numbers, &SrcRect, NULL, &Position, 0xFFFFFFFF);
+
+	SrcRect.left = m1*19;
+	SrcRect.top = 0;
+	SrcRect.right = SrcRect.left + 20;
+	Position.x = max_x*CELL_SIZE-77;
+	g_pD3DSprite->Draw(tex_numbers, &SrcRect, NULL, &Position, 0xFFFFFFFF);
+
+	SrcRect.left = m2*19;
+	SrcRect.top = 0;
+	SrcRect.right = SrcRect.left + 20;
+	Position.x = max_x*CELL_SIZE-98;
+	g_pD3DSprite->Draw(tex_numbers, &SrcRect, NULL, &Position, 0xFFFFFFFF);
+
+	SrcRect.left = h*19;
+	SrcRect.top = 0;
+	SrcRect.right = SrcRect.left + 20;
+	Position.x = max_x*CELL_SIZE-125;
+	g_pD3DSprite->Draw(tex_numbers, &SrcRect, NULL, &Position, 0xFFFFFFFF);
+
+	SrcRect.left = 0;
+	SrcRect.top = 0;
+	SrcRect.right = SrcRect.left + 5;
+	Position.x = max_x*CELL_SIZE-56;
+	g_pD3DSprite->Draw(tex_points, &SrcRect, NULL, &Position, 0xFFFFFFFF);
+
+	SrcRect.left = 0;
+	SrcRect.top = 0;
+	SrcRect.right = SrcRect.left + 5;
+	Position.x = max_x*CELL_SIZE-104;
+	g_pD3DSprite->Draw(tex_points, &SrcRect, NULL, &Position, 0xFFFFFFFF);
 }
 //Отрисовать на табло текущие очки
 void DrawScore()
 {
-	SelectObject(hCompatibleDC, bmp_numbers);
 	int t=gamescore;
 	for (int i=0; i<5; i++)
 	{
-		BitBlt(hDC,100-21*i,5, 20, 37, hCompatibleDC, (t%10)*19, 0, SRCCOPY);
+		RECT SrcRect;
+		SrcRect.left = (t%10)*19;
+		SrcRect.top = 0;
+		SrcRect.right = SrcRect.left + 20;
+		SrcRect.bottom = 37;
+
+		D3DXVECTOR3 Position(100-21*i,5,0);
+		g_pD3DSprite->Draw(tex_numbers, &SrcRect, NULL, &Position, 0xFFFFFFFF);
+
+		// BitBlt(hDC,100-21*i,5, 20, 37, hCompatibleDC, (t%10)*19, 0, SRCCOPY);
 		t /=10;
 	}
 }
 //Отрисовать табло
 void DrawTop()
 {
-	PatBlt(hDC,0, 0, 46*max_x, 46, BLACKNESS);
 	DrawScore();
 	DrawTime();
 }
