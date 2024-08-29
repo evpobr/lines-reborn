@@ -11,30 +11,30 @@ add_executable(Lines98 WIN32
     resrc1.h
     Lines.rc
     Lines.ICO
-    res/0.bmp
-    res/appear_1.bmp
-    res/appear_2.bmp
-    res/appear_3.bmp
-    res/appear_4.bmp
-    res/explode_1.bmp
-    res/explode_2.bmp
-    res/explode_3.bmp
-    res/explode_4.bmp
-    res/explode_5.bmp
-    res/explode_6.bmp
-    res/explode_7.bmp
-    res/explode_8.bmp
-    res/explode_9.bmp
-    res/jump_1.bmp
-    res/jump_2.bmp
-    res/jump_3.bmp
-    res/jump_4.bmp
-    res/jump_5.bmp
-    res/jump_6.bmp
-    res/numbers.bmp
-    res/points.bmp
-    res/prestand.bmp
-    res/stand.bmp
+    res/0.png
+    res/appear_1.png
+    res/appear_2.png
+    res/appear_3.png
+    res/appear_4.png
+    res/explode_1.png
+    res/explode_2.png
+    res/explode_3.png
+    res/explode_4.png
+    res/explode_5.png
+    res/explode_6.png
+    res/explode_7.png
+    res/explode_8.png
+    res/explode_9.png
+    res/jump_1.png
+    res/jump_2.png
+    res/jump_3.png
+    res/jump_4.png
+    res/jump_5.png
+    res/jump_6.png
+    res/numbers.png
+    res/points.png
+    res/prestand.png
+    res/stand.png
     SMALL.ICO
 )
 if(MSVC)
