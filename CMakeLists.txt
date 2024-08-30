@@ -36,6 +36,7 @@ add_executable(Lines98 WIN32
     res/prestand.png
     res/stand.png
     SMALL.ICO
+    app.manifest
 )
 if(MSVC)
     target_compile_definitions(Lines98 PRIVATE _CRT_SECURE_NO_WARNINGS)
