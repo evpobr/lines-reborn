@@ -2,6 +2,7 @@
 
 #include <d3d9.h>
 #include <d3dx9.h>
+#include <versionhelpers.h>
 #include <wincodec.h>
 
 #include "resource.h"
@@ -509,6 +510,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		randomize();
 
+		bool fIsWindows7OrGreater = IsWindows7OrGreater();
+
 		HRESULT hr = Direct3DCreate9Ex(D3D_SDK_VERSION, &g_pD3D);
 		if (FAILED(hr))
 		{
@@ -518,10 +521,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		d3dpp.BackBufferWidth = 0;
 		d3dpp.BackBufferHeight = 0;
 		d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
-		d3dpp.BackBufferCount = 1;
+		d3dpp.BackBufferCount = fIsWindows7OrGreater ? 2 : 1;
 		d3dpp.MultiSampleType = D3DMULTISAMPLE_NONE;
 		d3dpp.MultiSampleQuality = 0;
-		d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+		d3dpp.SwapEffect = fIsWindows7OrGreater ? D3DSWAPEFFECT_FLIPEX : D3DSWAPEFFECT_DISCARD;
 		d3dpp.hDeviceWindow = hWnd;
 		d3dpp.Windowed = TRUE;
 		d3dpp.EnableAutoDepthStencil = FALSE;
